@@ -26,8 +26,8 @@ public:
 
 	bool ImageScratch();
 	bool ImageBlob(cv::Point pt);
-	bool ImageRed(cv::Point pt1, cv::Point pt2[]);
-	bool ImageGreen(cv::Point pt1, cv::Point pt2[]);
-	bool ImageBlue(cv::Point pt1, cv::Point pt2[]);
+	bool ImageRed(cv::Point pt1, const cv::Mat& img_roi);
+	bool ImageGreen(cv::Point pt1, const cv:: Mat& img_roi);
+	bool ImageBlue(cv::Point pt1, const cv::Mat& img_roi);
 };
 

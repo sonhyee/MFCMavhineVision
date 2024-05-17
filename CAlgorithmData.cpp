@@ -73,18 +73,10 @@ void CAlgorithmData::RunAlgorithm(HWND hWnd, const cv::Mat& img)
 
 	Sleep(1000);
 
-	Point camerahole(398, 277);
+	cv::Point camerahole(398, 277);
 
-	Point dots[] = {
-		Point(260, 280),
-		Point(245, 300),
-		Point(245, 910),
-		Point(260, 924),
-		Point(544, 924),
-		Point(554, 910),
-		Point(553, 295),
-		Point(540, 280)
-	};
+	//4각형 roi(x, y, width, height)
+	Mat img_roi = m_matImage(Rect(330, 500, 140, 200));
 
 	if (!strcmp(m_szAlgName, "scratch"))
 	{
@@ -96,19 +88,19 @@ void CAlgorithmData::RunAlgorithm(HWND hWnd, const cv::Mat& img)
 		m_bAlgResult = ImageBlob(camerahole);
 	}
 
-	else if (!strcmp(m_szAlgName, "redDefect"))
+	else if (!strcmp(m_szAlgName, "red defect"))
 	{
-		m_bAlgResult = ImageRed(camerahole, dots);
+		m_bAlgResult = ImageRed(camerahole, img_roi);
 	}
 
-	else if (!strcmp(m_szAlgName, "greenDefect"))
+	else if (!strcmp(m_szAlgName, "green defect"))
 	{
-		m_bAlgResult = ImageGreen(camerahole, dots);
+		m_bAlgResult = ImageGreen(camerahole, img_roi);
 	}
 
-	else if (!strcmp(m_szAlgName, "blueDefect"))
+	else if (!strcmp(m_szAlgName, "blue defect"))
 	{
-		m_bAlgResult = ImageBlue(camerahole, dots);
+		m_bAlgResult = ImageBlue(camerahole, img_roi);
 	}
 }
 
@@ -142,6 +134,8 @@ bool CAlgorithmData::ImageScratch()
 }
 bool CAlgorithmData::ImageBlob(cv::Point pt)
 {
+	int defect_cnt = 0;
+
 	cv::Mat imgCanny;
 	cv::Canny(m_matImage, imgCanny, 150, 255);
 	cv::Ptr<cv::SimpleBlobDetector> detector = SimpleBlobDetector::create();
@@ -167,92 +161,51 @@ bool CAlgorithmData::ImageBlob(cv::Point pt)
 	return true;
 }
 
-bool CAlgorithmData::ImageRed(cv::Point pt_cam, cv::Point pt_dots[])
+bool CAlgorithmData::ImageRed(cv::Point pt_cam, const Mat& img_roi)
 {
-	// 팔각형 ROI 정의
-	Mat mask = Mat::zeros(m_matImage.size(), CV_8UC1);
-	fillConvexPoly(mask, pt_dots, 8, Scalar(255));
 
-	// 카메라 홀 영역 제외 (반지름 5)
-	circle(mask, pt_cam, 10, Scalar(0), -1);
-
+	Mat img;
+	img_roi.copyTo(img);
+	
 	// ROI 내 R 평균 계산
 	Scalar mean, stddev;
-	Mat roi;
-	m_matImage.copyTo(roi, mask);
+	meanStdDev(img, mean, stddev);
+	double R_mean = mean[2];
 
-	meanStdDev(roi, mean, stddev);
-	double R_mean = mean[0];
-
-	// ROI 내 R 평균보다 작은 픽셀 검사
-	for (int i = 0; i < m_matImage.rows; i++)
-	{
-		for (int j = 0; j < m_matImage.cols; j++)
-		{
-			if (mask.at<uchar>(i, j) == 255 && m_matImage.at<Vec3b>(i, j)[2] < 255)
-			{
-				return false;
-			}
-		}
-	}
+	if (R_mean < 230)
+		return false;
 
 	return true;
 }
 
-bool CAlgorithmData::ImageGreen(cv::Point pt_cam, cv::Point pt_dots[])
+bool CAlgorithmData::ImageGreen(cv::Point pt_cam, const Mat& img_roi)
 {
-	// 팔각형 ROI 정의
-	Mat mask = Mat::zeros(m_matImage.size(), CV_8UC1);
-	fillConvexPoly(mask, pt_dots, 8, Scalar(255));
-
-	// 카메라 홀 영역 제외 (반지름 5)
-	circle(mask, pt_cam, 10, Scalar(0), -1);
+	Mat img;
+	img_roi.copyTo(img);
 
 	// ROI 내 R 평균 계산
 	Scalar mean, stddev;
-	Mat roi;
-	m_matImage.copyTo(roi, mask);
-	meanStdDev(roi, mean, stddev);
+	meanStdDev(img, mean, stddev);
 	double G_mean = mean[1];
 
-	// ROI 내 G 평균보다 작은 픽셀 검사
-	for (int i = 0; i < m_matImage.rows; i++) {
-		for (int j = 0; j < m_matImage.cols; j++) {
-			if (mask.at<uchar>(i, j) == 255 && m_matImage.at<Vec3b>(i, j)[1] < 255)
-			{
-				return false;
-			}
-		}
-	}
+	if (G_mean < 230)
+		return false;
 
 	return true;
 }
 
-bool CAlgorithmData::ImageBlue(cv::Point pt_cam, cv::Point pt_dots[])
+bool CAlgorithmData::ImageBlue(cv::Point pt_cam, const Mat& img_roi)
 {
-	// 팔각형 ROI 정의
-	Mat mask = Mat::zeros(m_matImage.size(), CV_8UC1);
-	fillConvexPoly(mask, pt_dots, 8, Scalar(255));
-
-	// 카메라 홀 영역 제외 (반지름 5)
-	circle(mask, pt_cam, 10, Scalar(0), -1);
+	Mat img;
+	img_roi.copyTo(img);
 
 	// ROI 내 R 평균 계산
 	Scalar mean, stddev;
-	Mat roi;
-	m_matImage.copyTo(roi, mask);
-	meanStdDev(roi, mean, stddev);
-	double B_mean = mean[2];
+	meanStdDev(img, mean, stddev);
+	double B_mean = mean[0];
 
-	// ROI 내 B 평균보다 작은 픽셀 검사
-	for (int i = 0; i < m_matImage.rows; i++) {
-		for (int j = 0; j < m_matImage.cols; j++) {
-			if (mask.at<uchar>(i, j) == 255 && m_matImage.at<Vec3b>(i, j)[0] < 255)
-			{
-				return false;
-			}
-		}
-	}
+	if (B_mean < 230)
+		return false;
 
 	return true;
 }
