@@ -15,7 +15,7 @@ public:
 	const char* GetPtnName() const;			// 패턴 이름을 반환하는 함수
 	void SetShutterSpeed(int shutterSpeed);	// 패턴 촬영 시 필요한 셔터 스피드를 설정하는 함수
 	int GetShutterSpeed() const;			// 패턴 촬영 시 필요한 셔터 스피드를 반환하는 함수
-	void SetPtnImg(const char* ptnName);
+	void SetPtnImg(const cv::Mat& img);
 	cv::Mat GetPtnImg();
 };
 

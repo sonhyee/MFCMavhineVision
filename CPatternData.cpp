@@ -33,9 +33,8 @@ int CPatternData::GetShutterSpeed() const
 	return m_nShutterSpeed;
 }
 
-void CPatternData::SetPtnImg(const char* ptnName)
+void CPatternData::SetPtnImg(const cv::Mat& img)
 {
-	cv::Mat img = cv::imread(ptnName);
 	img.copyTo(m_matImage);
 }
 
@@ -44,3 +43,4 @@ cv::Mat CPatternData::GetPtnImg()
 	cv::Mat img = m_matImage.clone();
 	return img;
 }
+ 
