@@ -29,45 +29,55 @@ class Exam(QWidget):
         self.resize(1000, 600)
         
         
-        self.logView = QPlainTextEdit(self)
-        #self.logView.setAcceptRichText(False) # Plain 으로 인식
-        self.logView.setGeometry(QRect(520, 90, 341, 321))
-        self.logView.setObjectName("logView")
-        self.logView.setCenterOnScroll(True)
+        self.label = QLabel("Model Selection", self)
+        self.label.setGeometry(QRect(50, 165, 300, 40))
+        self.label.setFont(QFont("Arial", 12))
         
-        #self.logView = QListView(self)
-        #self.logView.setGeometry(QRect(550, 110, 321, 321))
-        #self.logView.setObjectName("logView")
+        self.comboBox_model = QComboBox(self)
+        self.comboBox_model.setGeometry(QRect(50, 200, 171, 22))
+        self.comboBox_model.setObjectName("comboBox_model")
+        self.comboBox_model.setFont(QFont("Arial", 10))
+        self.comboBox_model.addItem("GALAXY S21")
+        self.comboBox_model.addItem("GALAXY S22")
+        self.comboBox_model.addItem("GALAXY S23")
         
-        #self.listView = QListView(self)
-        #self.listView.setGeometry(QRect(550, 441, 321, 121))
-        #self.listView.setObjectName("listView")
+      
         
         self.listView = QPlainTextEdit(self)
-        self.listView.setGeometry(QRect(520, 421, 341, 151))
+        self.listView.setGeometry(QRect(590, 411, 341, 171))
         self.listView.setObjectName("listView")
         self.listView.setCenterOnScroll(True)
         
         self.push_Start = QPushButton("START", self)
-        self.push_Start.setGeometry(QRect(80, 20, 131, 41))
+        self.push_Start.setGeometry(QRect(50, 50, 131, 41))
         self.push_Start.setFont(QFont("Arial", 14))
-        self.push_Start.setObjectName("pushButton")
+        self.push_Start.setObjectName("StartBtn")
         self.push_Start.clicked.connect(self.start_clicked)
+        
+        self.push_Start = QPushButton("STOP", self)
+        self.push_Start.setGeometry(QRect(50, 110, 131, 41))
+        self.push_Start.setFont(QFont("Arial", 14))
+        self.push_Start.setObjectName("StopBtn")
         
         self.frame = QFrame(self)
         self.frame.setGeometry(QRect(80, 110, 301, 401))
         self.frame.setObjectName("frame")
         
+        self.logView = QPlainTextEdit(self)
+        #self.logView.setAcceptRichText(False) # Plain 으로 인식
+        self.logView.setGeometry(QRect(590, 60, 361, 341))
+        self.logView.setObjectName("logView")
+        self.logView.setCenterOnScroll(True)
         
         self.lbl_img = QLabel(self)  # 결과 이미지 출력  대기 화면 출력 카메라 영상 출력
-        self.lbl_img.setGeometry(QRect(110, 50, 301, 401))
+        self.lbl_img.setGeometry(QRect(250, 10, 320, 490))
         self.lbl_img.resize(800, 600)
         
-        self.pixmap = QPixmap('black.jpg').scaled(300, 400)
+        self.pixmap = QPixmap('black.jpg').scaled(320, 490)
         self.lbl_img.setPixmap(self.pixmap)
         
-        self.label = QLabel("Panel Image", self)
-        self.label.setGeometry(QRect(190, 90, 300, 40))
+        self.label = QLabel("<Panel Image>", self)
+        self.label.setGeometry(QRect(330, 30, 300, 40))
         self.label.setFont(QFont("Arial", 14))
         
         self.InspectionHandler = Inspection.CInspectionHandler(self)
@@ -76,7 +86,6 @@ class Exam(QWidget):
     def start_clicked(self):
         self.InspectionHandler.StartInspection()
         
-        
     def logPrint(self, logText):
         self.logView.appendPlainText(logText)
     
@@ -84,7 +93,7 @@ class Exam(QWidget):
         self.listView.appendPlainText(resText)
     
     def imgPrint(self, PanelImg):
-        self.pixmap = QPixmap(PanelImg).scaled(300, 400)
+        self.pixmap = QPixmap(PanelImg).scaled(300, 500)
         self.lbl_img.setPixmap(self.pixmap)
 
 if __name__ == '__main__':

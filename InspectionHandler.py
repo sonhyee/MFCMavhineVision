@@ -85,9 +85,7 @@ class CInspectionHandler():
         #m_hWnd = hWnd
         if not self.ReadConfig():
             ss = "파일을 확인하세요.\n"
-            #logText = ss
-            #self.PrintLog(logText)
-            #self.GUI.Camera_Log(ss)
+            self.parent.signal.emit(ss)
             return
 
         #CameraHandler = CameraHandler()  # 카메라 핸들러 객체 생성
@@ -100,8 +98,8 @@ class CInspectionHandler():
         self.m_CamQueue.put('CONNECT')  # 카메라 연결
         
     def StartInspection(self):
-        self.m_nTotalFinAlgCnt = 0  # 검사를 완료한 총 알고리즘 개수 초기화
-        self.m_nPtnChkAlgCnt = 0  # 패턴별 확인을 완료한 총 알고리즘 개수 초기화
+        self.m_nTotalFinAlgCnt = 0  # 검사를 완료한 총 알고리즘 개수 초기화 ( 4 * 5 = 20개 )
+        self.m_nPtnChkAlgCnt = 0  # 패턴별 확인을 완료한 총 알고리즘 개수 초기화 ( 1 ~ 5 ) 
         self.m_nGrabCnt = 0  # 현재까지 촬상한 패턴 개수 초기화
         self.m_strResText = ""
         
@@ -111,6 +109,10 @@ class CInspectionHandler():
             self.m_CamQueue.put('GRAB')  # 촬상
             self.m_Cam_cv.notify()  # 자고있는 카메라 쓰레드 깨우기
         self.m_CamLock.release()
+        
+        #self.m_AlgLock.acquire()
+        #self.m_Alg_cv.notify_all()
+        #self.m_AlgLock.release()
         
     def ReadConfig(self):
         properties = parser.ConfigParser()
@@ -184,10 +186,9 @@ class CInspectionHandler():
     #     SendMessage(self.hwnd, UM_LOGMSG, None, log_text)
 
     def DisconnectCam(self):
-        self.m_CamLock.lock()
+        self.m_CamLock.acquire()
         self.m_CamQueue.put('DISCONNECT')
-        self.m_CamLock.unlock()
-        
+        self.m_CamLock.release()
         
 class CameraWorker(QThread):
     def __init__(self, parent):
@@ -212,11 +213,9 @@ class CameraWorker(QThread):
                     #print(str(list(self.parent.m_CamQueue.queue)))
                     
                 case 'SETCAMPARAMS':
-                    print('setcamparams')
                     self.parent.m_Camera.SetCamParams(self.parent.m_patterns[self.parent.m_nGrabCnt].GetShutterSpeed())    # Set parameters
                     
                 case 'GRAB':
-                    print('grab')
                     img_name = self.parent.m_patterns[self.parent.m_nGrabCnt].GetPtnName() + "00" + str(self.parent.get_model_count()) + ".jpg"
                    
                     img = cv2.imread(img_name)
@@ -232,17 +231,17 @@ class CameraWorker(QThread):
 
                     self.parent.m_Camera.Grab(self.parent.m_patterns[self.parent.m_nGrabCnt].GetPtnName())    
 
+                    #self.parent.parent.signal_img.emit(img_name)
+
                     self.parent.m_patterns[self.parent.m_nGrabCnt].SetPtnImg(img)
                     #pattern_ptr = id(self.parent.m_patterns[self.parent.m_nGrabCnt])
-                    print(img_name)
-                    self.parent.parent.signal_img.emit(img_name)
+                    #self.parent.parent.signal_img.emit(img_name)
 
                     self.parent.m_AlgLock.acquire()
                     self.parent.m_AlgQueue.put((self.parent.m_patterns[self.parent.m_nGrabCnt].GetPtnName(), self.parent.m_nGrabCnt))    
                     print(str(list(self.parent.m_AlgQueue.queue)))
-                    print(self.parent.AlgThreadSleeping)
-                    if self.parent.AlgThreadSleeping:
-                        self.parent.m_Alg_cv.notify()    # Wake up all sleeping algorithm threads to enable parallel processing
+                    #if self.parent.AlgThreadSleeping:
+                    self.parent.m_Alg_cv.notify_all()    # Wake up all sleeping algorithm threads to enable parallel processing
                     self.parent.m_AlgLock.release()
 
                     self.parent.m_nGrabCnt += 1    # Increment the number of patterns captured so far
@@ -260,6 +259,7 @@ class AlgorithmWorker(QThread):
     def run(self):
          while self.parent.m_bRunAlgThread:
             with self.parent.m_AlgLock:
+                # 알고리즘 큐에 들어왔거나 카메라 스레드가 False일 때
                 self.parent.m_Alg_cv.wait_for(lambda: not self.parent.m_AlgQueue.empty() or not self.parent.m_bRunCamThread)
                 
             self.parent.m_AlgLock.acquire()
@@ -268,13 +268,16 @@ class AlgorithmWorker(QThread):
                 self.parent.m_AlgLock.release()
                 return
 
-            self.parent.AlgThreadSleeping = False
-            ptn_name, ptn_num = self.parent.m_AlgQueue.queue[0]
+            #self.parent.AlgThreadSleeping = False
+            if not self.parent.m_AlgQueue.empty():
+                ptn_name, ptn_num = self.parent.m_AlgQueue.queue[0]
             alg_idx = self.parent.m_nPtnChkAlgCnt
+            print(f"alg_idx: {alg_idx}")
 
             
             self.parent.m_PtnChkAlgCntLock.acquire()
             self.parent.m_nPtnChkAlgCnt += 1
+            print(f"m_nPtnChkAlgCnt: {self.parent.m_nPtnChkAlgCnt},m_nTotalAlgCnt: {self.parent.m_nTotalAlgCnt}")
 
             if self.parent.m_nPtnChkAlgCnt == self.parent.m_nTotalAlgCnt:
                 self.parent.m_AlgQueue.get()
@@ -283,10 +286,9 @@ class AlgorithmWorker(QThread):
             self.parent.m_PtnChkAlgCntLock.release()
             self.parent.m_AlgLock.release()
 
-            print(alg_idx)
             if self.parent.m_Algorithms[alg_idx].CheckAlgPtn(ptn_name):
-                self.parent.m_Algorithms[alg_idx].RunAlgorithm(self.parent.m_patterns[ptn_num].GetPtnImg())
-
+                
+                self.parent.parent.signal_img.emit(self.parent.m_Algorithms[alg_idx].RunAlgorithm(self.parent.m_patterns[ptn_num].GetPtnImg()))
                 if self.parent.m_Algorithms[alg_idx].GetAlgResult():
                     logText = f"[{ptn_name}00{self.parent.get_model_count()}] : Alg[{self.parent.m_Algorithms[alg_idx].GetAlgName()}] OK."
                     self.parent.parent.signal.emit(logText)
@@ -297,15 +299,17 @@ class AlgorithmWorker(QThread):
 
             self.parent.m_TotalFinAlgCntLock.acquire()
             self.parent.m_nTotalFinAlgCnt += 1
-
+            print(f"m_nTotalFinAlgCnt: {self.parent.m_nTotalFinAlgCnt}")
+            
             if self.parent.m_nTotalFinAlgCnt == self.parent.m_nTotalPtnCnt * self.parent.m_nTotalAlgCnt:
+                
                 logText = "Inspection completed.\n"
                 self.parent.parent.signal.emit(logText)
 
                 self.strAllRes = f"MODEL 00{self.parent.get_model_count()}: {self.parent.m_strResText} NG"
                 self.parent.parent.signal_res.emit(self.strAllRes)
 
-                self.parent.m_nTotalAlgCnt = 0
+                self.parent.m_nTotalFinAlgCnt = 0
                 self.parent.m_nFinModelCnt += 1
                 self.parent.AlgThreadSleeping = True
                 self.strResText = ""
